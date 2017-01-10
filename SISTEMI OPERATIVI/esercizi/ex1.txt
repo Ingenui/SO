@@ -1,0 +1,14 @@
+bash-4.2# mkdir /tempo/first_exercise
+bash-4.2# cd /tempo/first_exercise
+bash-4.2# mkdir ./pippo
+bash-4.2# mkdir ./pluto
+bash-4.2# cd ./pippo
+bash-4.2# touch first.txt
+bash-4.2# touch second.txt
+bash-4.2# ls -l 
+total 0
+-rw-r--r-- 1 root root 0 Nov 19 15:35 first.txt
+-rw-r--r-- 1 root root 0 Nov 19 15:35 second.txt
+bash-4.2# ls -l | cat > output.txt
+bash-4.2# cd /tempo/first_exercise 
+bash-4.2# mv ./pippo/output.txt ./pluto/

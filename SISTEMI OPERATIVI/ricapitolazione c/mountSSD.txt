@@ -1,0 +1,10 @@
+lsscsi 
+
+ 
+gdisk /dev/sda
+
+ 
+mkdir /dati 
+
+
+mount /dev/sda4 /dati

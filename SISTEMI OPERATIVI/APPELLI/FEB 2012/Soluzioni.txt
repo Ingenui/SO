@@ -1,0 +1,175 @@
+ 
+
+============================ Memory
+
+*** pari
+
+Che cosa è una memory region?
+ - un intervallo contiguo dello spazio di indirizzamento di un processo a cui il processo puo legalmente accedere (fuori da una regione 
+non si puo' accedere), e' composta da una sequenza di una o piu' pagine
+
+Per accedere ad una memory region si usano delle system call o cos'altro? 
+ - regolari istruzioni macchina di lettura/scrittura alla memoria 
+
+Se si accede ad una memory si possono provocare page fault? perché?
+ - ciascuna pagina di una memory region puo' o meno essere nel resident set.
+
+Fai tre esempi di tipologie di memory region che puoi trovare in un nello spazio di indirizzamento di un processo.
+ - codice, dati, stack, librerie dinamiche
+
+*** dispari
+
+Una memory region è direttamente associata a un insieme di frame o ad un insieme di pagine? Spiega.
+- una memory region e' composta da un sequenza di pagine contigue, ciascuna di queste puo' essere associata ad un frame 
+(residente) o meno (page fault quando acceduta).
+
+Se si accede ad un indirizzo che non cade in alcuna memory region cosa accade?
+- dal punto di vista del processore e' un page fault perche' il SO inizializza la PTE come nel caso di pagine non residenti, 
+il SO nello gestire il page fault si accorge che l'accesso non e' lecito e uccide il processo (tipicamente).
+
+Una memory region può contenere dati o codice del kernel?
+- il kernel e' mappato nella tabella di memoria del processo tale zona non e' accessibile legalmente al processo, la mappatura
+e' solo una questione di efficienza e non ha riscontro nelle strutture che dicono quali sono le regioni del processo
+
+Una memory region può essere condivisa. qual'è il caso più comune di memory region condivisa?
+- le librerie condivise (.dll o .so)
+
+============================ I/O
+
+
+*** pari
+mirroring
+- vedi materiale didattico
+hot spare
+- vedi materiale didattico
+disco spento pronto ad essere attivato in caso di un fault di uno dei dischi attivi in maniera
+da far partire istantaneamente la procedura di rebuilding dopo un fault e quindi di far stare in 
+stato degradato l'array il meno possibile. 
+
+rebuilding
+- vedi materiale didattico
+
+
+*** dispari
+striping
+- vedi materiale didattico
+
+parity
+- vedi materiale didattico, NON SERVE a RICONOSCERE GLI ERRORI ne CORREGGERLI! anche se la tecnica 
+usata e' la stess. Serve a recuperare i dati dopo un fault.
+
+stato degradato
+- Stato di un array (non di un disco!) ridondante (es. RAID5) dopo un fault. L'array funziona ancora ma con 
+prestazioni inferiori e con meno (o nulla) tolleranza ad ulteriori guasti.
+
+============================ Scheduling
+
+*** pari
+
+A running
+20ms interrupt per page fault, gestito subito (minor pf), non si fa dispatching e A ritorna running 
+A running
+30ms system call, A va in blocco e si fa dispatching
+B running
+90ms interrupt per I/O, A va in ready, poiche' la politica non prevede preemption per questo evento niente dispatching
+B running
+130ms interrupt per quanto scaduto, dispatching
+C running
+
+*** dispari
+A running
+60ms  interrupt per quanto scaduto, dispatching
+B running
+80ms interrupt per page fault, B va in blocco (major pf), dispatching
+C running
+110ms interrupt per I/O, B ritorna ready, poiche' la politica non prevede preemption per questo evento niente dispatching
+Cms running
+120ms system call non bloccante, nessun dispatching
+C running
+160ms interrupt per quanto scaduto, dispatching
+
+
+============================ grep
+
+*** pari
+cat bgp_updates.txt | grep ASPATH | egrep 'ASPATH: ([3-9][0-9][0-9][0-9]|[0-9][0-9][0-9][0-9][0-9])( |$)' | head -n 20
+
+
+*** dispari
+cat bgp_updates.txt | grep ^ASPATH: | egrep ' ([0-2][0-9][0-9][0-9]|[0-9][0-9][0-9]|[0-9][0-9]|[0-9])$' | tail -20
+
+============================ awk
+
+*** pari
+cat bgp_updates.txt | egrep '(^$)|(^  )|(^ANNOUNCE)|(^WITHDR)|(^FROM)' | awk -v FS="\n" -v RS="" '/ANNOUNCE/{print $1, NF-2 ;}' | awk '{print $2, $4}'
+
+*** dispari
+cat bgp_updates.txt | egrep '(^$)|(^  )|(^ANNOUNCE)|(^WITHDR)|(^FROM)' | awk -v FS="\n" -v RS="" '/WITHDRAW/{print $1, NF-2 ;}' | awk '{print $2, $4}'
+
+============================ gdb
+molto simile ad altri appelli di cui sono disponibili le soluzioni.
+
+============================ unix practice
+
+*** pari
+Nella shell l'operazione di command substitution viene eseguita sulla linea di comando durante il regolare processamento dell'input.
+Cio' che e' compreso tra backquotes `cat pippo.txt` viene esguito ed il risultato sostituito alle backquotes e al contentuto.
+esempio:
+touch `cat pippo.txt`
+crea file vuoti i cui nomi sono listati in pippo.txt
+
+*** dispari
+
+Una variabile d'ambiente e' una coppia chiave valore. L'ambiente di un processo e' un insieme di queste coppie.
+Ciascun processo ha un ambiente distinto da un altro. L'eredita' di una variabile di ambiente viene realizzando copiandola
+nel nuovo processo figlio appena creata.
+Esempio
+
+pizzonia@pisolo:~$ x=5
+pizzonia@pisolo:~$ echo $x
+5
+pizzonia@pisolo:~$ bash
+pizzonia@pisolo:~$ echo $x
+
+pizzonia@pisolo:~$ exit
+exit
+pizzonia@pisolo:~$ export x
+pizzonia@pisolo:~$ bash
+pizzonia@pisolo:~$ echo $x
+5
+pizzonia@pisolo:~$ exit
+exit
+pizzonia@pisolo:~$ 
+
+
+export NON RENDE GLOBALE LA VARIABILE!!! istruisce solo la shell a copiarla nell'ambiente dei figli!
+
+============================ windows
+
+*** pari
+
+- gestione del resident set
+
+In windows esiste un processo che stabilisce per ciascun processo quale deve essere la taglia del suo resident set, inoltre
+la politica di page replacement e' locale per processo e non globale come avviene in Linux.
+
+- ciclo di vita delle pagine liberate (quelle del page buffering)
+Sia Linux che Windows hanno il page buffering (sotto Windows "stand-by pages"). La differenza e' che in windows c'e una particolare gestione
+per pagine che devono essere azzerate o che sono state azzerate prima che siano messe a disposizione di altri processi.
+
+
+*** dispari
+
+Descrivi i seguenti concetti. 
+oggetti dell'executive
+- ciascuna risorsa e' rappresentata dal sistema operativo come un oggetto (una struttura dati in kernel space)
+l'executive e' la parte del sistema operativo deputata alla gestione delle risorse e quindi alla rappresentazione di queste
+mediante questo tipo di oggetti.
+
+handles
+- e' il modo di far riferimento agli executive object da parte dei processi, sono comparabili ai file handle di unix.
+
+object manager
+- e' la parte dell'executive che effettua la gestione "generica" di tutti gli oggetti. in particoalre tiene una tabella per ciascun
+processo degli handle ammessi per tale processo (assimilabile alla file table di unix).
+

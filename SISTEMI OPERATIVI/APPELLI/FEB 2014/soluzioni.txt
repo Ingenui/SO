@@ -1,0 +1,261 @@
+
+
+Memory management (pari)
+=================
+
+Per ciascuna delle seguenti strategie di eviction descrivi brevemente punti di forza e di debolezza. 
+
+Optimal
+  Strategia ottima, meglio di cosi' non si puo' fare, ma prevede la conoscenza del futuro e quindi irrealizzabile.
+
+FIFO
+  Facile da realizzare (non richiede supporto hardware particolare) ma prestazioni scarse (e anomaly di Belady).
+
+LRU
+  Nell'ipotesi di localita' temporale e' la migliore strategia realizzabile. Richiede un supporto hardware improponibile.
+
+CLOCK (versione con un solo bit)
+  E' un buon compromesso tra realizzabilita' ed efficacia. E' una grezza approssimazione di LRU.
+
+
+Memory management (dispari)
+=================
+
+Rispondi a ciascuna delle seguenti domande circa il fenomeno del trashing.
+
+In cosa consiste il fenomeno chiamato trashing?
+   Quando molti o tutti i processi hanno un resident set piu' piccolo del necessario, e generano molti page fault.
+   Il sistema spendo gran parte del tempo a gestire page fault e la cpu e' sempre in attesa di input da disco (le pagine).
+
+Una buona strategia di eviction può evitare che il sistema vada in trashing? Spiega il perché della tua risposta.
+   No, ci sara' sempre una soglia oltre il quale si avra' trashing.
+
+Un sistema con disk cache è più o meno facile che vada in trashing?
+   Piu' facile perche' parte della ram e' occupata a fare disk cache.
+
+Un sistema con shared libraries è più o meno facile che vada in trashing?
+   Piu' difficile, perche' i processi occupano mediamente meno memoria.
+
+
+Raid 4 (pari)
+========
+
+Considera una configurazione RAID 4 con m dischi. Rispondi alle seguenti domande.
+
+Discuti le prestazioni in lettura di Raid 4 con m dischi rispetto a Raid 0 con m dischi.
+   Quasi identiche ma le letture di Raid4 sono distribuite su m-1 dischi per cui Raid4 e' leggermente peggiore
+
+Supponi che il disco D si sia rotto. Descrivi il metodo per ricostruire il j-esimo blocco di D a partire dai dati presenti negli altri dischi.
+   D= xor degli altri dischi e della parita'
+
+Descrivi un metodo per il calcolo della parità che preveda la lettura di al più due blocchi.
+   Se aggiorno un blocco di A in A' la nuova parita' P' puo' essere calcolata come P'= A xor A' xor P
+   Poiche' A' e' noto (e' la nuova versione di A) dobbiamo solo leggere la vecchia versione di A e di P.
+   Notare che questa formula non dipende dal numero di dischi impiegati in Raid4.
+
+
+Raid 5 (dispari)
+======
+
+Considera una configurazione RAID 5 con n dischi. Rispondi alle seguenti domande.
+
+Discuti le prestazioni in lettura di Raid 5 con n dischi rispetto a Raid 0 con n dischi.
+  Identiche sia Raid0 che Raid5 distribuiscono le letture su n dischi.
+
+Descrivi un metodo per il calcolo della parità che preveda la lettura di al più due blocchi.
+  vedi esercizio su raid4
+
+Supponi che il disco A si sia rotto. Descrivi il metodo per ricostruire l'i-esimo blocco di A a partire dai dati presenti negli altri dischi.
+  vedi esercizio su raid4
+
+
+
+
+
+scheduling (pari)
+=================
+
+La politica di scheduling è round robin con quanto di tempo pari a 80ms. 
+Attenzione: le system call possono essere bloccanti o non bloccanti e i page 
+fault major o minor.
+
+    A cpu bound, genera un major page fault dopo 10ms di esecuzione servito in 70ms.
+    B cpu bound ma genera una write per il disco dopo 30ms di esecuzione, nessun page fault.
+    C I/O bound, nessun page fault.
+
+
+    0: A running
+    10ms: A major page fault, A in blocco, si schedula B
+    40ms: B system call non bloccante, B prosegue l'esecuzione
+    60ms: interrupt dovuto alla pagina di A, A ready, B prosegue l'esecuzione
+    90ms: B quanto scaduto, si schedula C
+    90ms: C system call bloccante, C va  in blocco, si schedula A
+
+scheduling (dispari)
+=================
+
+    La politica di scheduling è round robin con quanto di tempo pari a 60ms. 
+Attenzione: le system call possono essere bloccanti o non bloccanti e i page 
+fault major o minor.
+
+    A cpu bound ma genera un lettura per il disco dopo 20ms di esecuzione servita in 50ms.
+    B cpu bound ma genera un minor page fault dopo 30ms di esecuzione.
+    C cpu bound, nessun page fault.
+
+    0: A running
+    20ms: A system call bloccante, A in blocco, si schedula B
+    50ms: B minor page fault, B prosegue l'esecuzione
+    70ms: interrupt dovuto ai dati richiesti da A, A ready, B prosegue l'esecuzione
+    80ms: B quanto scaduto, si schedula C
+    130ms: C quanto scaduto, si schedula A
+
+
+
+Scripting grep
+==============
+
+# pari
+
+
+cat  bgp_updates.txt | egrep 'ASPATH: ([0-9][0-9][0-9][0-9]|[0-9][0-9][0-9])( .* | )2[0-9][0-9][0-9][13579]$' 
+
+
+# dispari
+
+cat  bgp_updates.txt | egrep 'ASPATH: 1[0-9][0-9][0-9][02468]( .* | )([0-9][0-9][0-9]|[0-9][0-9][0-9][0-9])$' 
+
+
+
+Scripting awk
+==============
+
+# pari
+
+pizzonia@pisolo$ cat bgp_updates.txt | egrep '(^FROM|^MULTI_EXIT_DISC|^$)'  | awk -F'\n' -v RS='' '/MULTI_EXIT_DISC/{print $1 " " $2}' | awk '{print $2 " "$NF}' | sort | uniq -c | sort -rn | head -10
+     92 195.22.216.188 100
+     78 196.7.106.245 0
+     57 4.68.0.243 0
+     45 217.75.96.60 0
+     45 144.228.241.81 -2
+     42 213.200.87.254 10
+     37 208.51.134.253 2602
+     27 208.51.134.253 2771
+     26 147.28.255.2 20
+     25 208.51.134.253 2962
+
+
+# dispari 
+
+pizzonia@pisolo$ cat bgp_updates.txt | egrep '(^FROM|^NEXT_HOP|^$)'  | awk -F'\n' -v RS='' '/NEXT_HOP/{print $1 " " $2}' | awk '{print $3 " "$NF}' | sort | uniq -c | sort -rn | head -15
+    264 AS2497 202.232.0.3
+    194 AS12956 213.140.32.148
+    179 AS286 134.222.86.174
+    171 AS3549 208.51.134.253
+    163 AS7018 12.0.1.63
+    149 AS293 134.55.200.31
+    147 AS6895 193.149.1.1
+    119 AS286 134.222.85.45
+    112 AS13237 81.209.156.1
+    108 AS2914 129.250.0.11
+    ....
+
+
+Debugging
+=========
+
+pizzonia@pisolo$ gcc -g *.c -lm -o fib
+
+pizzonia@pisolo$ gdb fib
+GNU gdb (GDB) 7.6.1-ubuntu
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+Reading symbols from /home/pizzonia/Downloads/prj3/fib...done.
+(gdb) b fib
+Breakpoint 1 at 0x400876: file init_list.c, line 8.
+(gdb) ptype L
+type = struct list {
+    struct element *first;
+    struct element *last;
+} *
+(gdb) ptype L->last
+type = struct element {
+    struct element *next;
+    struct element *prev;
+    double num;
+} *
+(gdb) cond 1 L!=0 && L->last!=0 && L->last->num >10000
+(gdb) r 20
+Starting program: /home/pizzonia/Downloads/prj3/fib 20
+
+Breakpoint 1, fib (f1=11) at init_list.c:8
+8          if ( f1==1 || f1==2 )
+(gdb) p L->last->num
+$1 = 10170,28645158315
+(gdb) bt
+#0  fib (f1=11) at init_list.c:8
+#1  0x00000000004008fc in init_list (L=0x602010, n=20) at init_list.c:20
+#2  0x00000000004009c2 in main (argc=2, argv=0x7fffffffd918) at main.c:21
+(gdb) up
+#1  0x00000000004008fc in init_list (L=0x602010, n=20) at init_list.c:20
+20           double x=pow(fib(i), log(i));
+(gdb) p i
+$2 = 11
+(gdb) 
+
+
+Pratica Unix (pari)
+===================
+
+x1='ls'
+
+x2='-l'
+
+$x{1,2}
+
+Che effetto hanno i seguenti comandi dati di seguito nella shell? Spiega il perché.
+
+- L'effetto e' lo stesso di "ls -l" perche' $x{1,2} mediante la brace expansion della shell
+diventa $x1 $x2, ciascuna variabile viene quindi sostituita dal suo valore ls -l, viene poi effettuato il
+word splitting e quindi si cerca l'eseguibile "ls" nel path e lo si esegue con "-l" come parametro.
+
+Pratica Unix (dispari)
+===================
+
+Che effetto hanno i seguenti comandi dati di seguito nella shell? Spiega il perché.
+
+x1='ls'
+
+$x1 `echo /`
+
+- l'effetto e' lo stesso di "ls /" perche' la command substitution della shell sostituisce 
+a `echo /` il risultato del comando cioe' "/", la variable expansion sostituisce a $x1 ls, 
+viene poi effettuato il
+word splitting e quindi si cerca l'eseguibile "ls" nel path e lo si esegue con "/" come parametro.
+
+
+Windows vs. Linux
+=================
+
+
+Rispondi brevemente alle seguenti domande sui servizi.
+
+Cosa si intende per servizio in Windows e Linux?
+    Essenzialmente processi che vengono eseguiti (tipicamente al boot) e generalmente 
+    non prevedono l'interazione dell'utente al terminale.
+
+In Windows, che ruolo gioca svchost.exe?
+    Servizi "piccoli" possono essere realizzati come DLL che vengono linkati a svchost.exe. In questo modo 
+    si possono risparmaire un certo numero di processi a scapito di un maggiore rischio per la stabilita' dei servizi stessi.
+ 
+In Linux, descrivi almeno un modo di configurare un servizio perché parta al boot.
+    I servizi in linux sono configurabili nelle directory /etc/rcN.d/ (configurazioni del runlevel secondo l'approccio SystemV)
+    Un altro approccio e' quello di configurare init. Nella versione upstart le configurazioni sono in /etc/init
+
+In Windows, dove pensi che sia mantenuta l'informazione di quali servizi partono al boot? Quale pensi sia il modo migliore per configurare la partenza di un servizio al boot?
+    Nel registro, tipicamente non editato a mano ma via GUI.

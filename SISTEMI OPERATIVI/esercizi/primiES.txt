@@ -1,0 +1,20 @@
+bash-4.2# mkdir /tempo
+bash-4.2# mkdir /tempo/uno
+bash-4.2# mkdir /tempo/due
+bash-4.2# cd /tempo/uno  
+bash-4.2# cat -> profile
+test
+^C
+bash-4.2# cat profile
+test
+bash-4.2# cat profile > /tempo/due/copia_profile
+bash-4.2# mv /tempo/uno/profile /tempo/due
+bash-4.2# mv /tempo/due/copia_profile /tempo/uno 
+bash-4.2# cd /tempo 
+bash-4.2# rm /tempo/due/profile /tempo/uno/copia_profile
+bash-4.2# rm -r /tempo/uno
+bash-4.2# rm -r /tempo/due
+bash-4.2# cd /tempo
+bash-4.2# touch test.txt
+bash-4.2# touch -a test.txt
+bash-4.2# 

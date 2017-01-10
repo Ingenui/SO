@@ -1,0 +1,222 @@
+
+
+Memory management (pari)
+=================
+
+Rispondi alle seguenti domande sulla rilocazione dei processi in sistemi non dotati di memoria virtuale.
+1. Per quali motivi un kernel potrebbe aver bisogno di rilocare un processo?
+     Per effettuare compattazione e recuperare la memoria persa per la frammentazione esterna, o perche' il processo e' stato sospeso e deve essere riattivato ma la zona di memoria precedentemente usata e' oramai occupata da un altro processo
+
+2. In un processo distinguiamo tra memoria che contiene codice (C) e memoria che contiene dati (D). Un riferimento (ad es. puntatore) appartiene ad una delle quattro tipologie: da D a D, da C a C, da D a C, da C a D. Dai, brevemente, un esempio di concreto per ciascuna tipologia. Commenta brevemente sull'impatto che tali tipologie hanno sulla possibilità di rilocare un processo con soli mezzi software.
+    da D a D: es. puntatore di una struttura linkata
+    da C a C: es. operando di istruzione macchina jump
+    da D a C: tipicamente puntatori a funzione (es. metodi polimorfi in linguaggi object oriented compilati es. c++)
+    da C a D: es. puntatori a costanti tipo printf("hello world")
+    i puntatori da C a qualsiasi cosa sono facilmente rilocabili con metodi software (vedi linker relocation table) perche' non variano a runtime
+    i puntatori da D a qualsiasi cosa sono difficilmente rilocabili via software senza costoso supporto di una virtual machine (che comunque tipicamente non viene realizzato).
+
+3. Qual'è la tecnologia hardware più semplice che conosci per supportare la rilocazione?
+    Una coppia di registri base e limit che agiscono sul processo running trasformando gli indirizzi logici in fisici e permettendo cosi' facilmente la rilocazione anche dei puntatori nei dati.
+
+
+
+
+Memory management (dispari)
+=================
+
+Immagina di dover realizzare, in un kernel, una struttura dati linkata. Puoi far affidamento sulla funzione standard malloc()? Spiega.
+    la malloc non e' disponibile perche' e' software della libreria standard del c e il kernel non viene linkato a nessuna libreria.
+All'interno di un sistema con molti processi quanti heap sono presenti? Spiega.
+    uno per ciascun processo. ciascuno heap e' gestito dalla malloc in maniera del tutto indipendente.
+Il kernel deve allocare memoria per le proprie strutture dati e per i processi. Che tecniche si usano nei due casi? perché?
+    per le strutture dati si usa qualcosa che assomiglia alla malloc ma e' piu' efficiente in quanto l'allocatore del kernel non ha necessita' di essere generale ma deve funzionare in maniera molto efficiente per le strutture dati del kernel. In linux questo allocatore e' chiamato slab allocator e ve ne e' uno per ciascuna lunghezza delle strutture dati dichiarate nel kernel (sudo cat /proc/slabinfo). Tale allocatore "spezzetta" pezzi grossi allocati dal buddy system. Per i processi l'allocazione e' fortemente basata sul supporto hardware alla paginazione. Ogni frame e' equivalente. L'allocatore in questo caso tiene traccia dei frame liberi (es. tramite buddy system) e quando viene assegnato ad un processo tiene traccia a quale pagina del processo e' assegnato. In sostanza queste sono le strutture dati che il kernel tiene per la gestione della memoria virtuale dei processi.
+
+I/O (pari)
+========
+In una operazione di lettura da disco, quali sono gli eventi e o comportamenti che coinvolgono il processo, il disk scheduler, il disco, gli interrupt, il kernel ecc. Elencali nel corretto ordine temporale, dal momento in cui il processo ha effettuato la system call, al momento in cui riceve i dati. 
+
+vedi materiale didattico
+
+
+I/O  (dispari)
+======
+Considera le operazioni read e write su disco. Compara le due operazioni rispetto ai seguenti aspetti:
+uso dei buffer 
+    l'operazione read riempie un buffer con i dati provenienti da disco, molti kernel usano tale buffer come cache per successive letture. la write riempie un buffer con i dati passati dall'utente e poi ne scrive il contenuto su disco (appena possibile), molti kernel usano tale buffer come cache per successive letture.
+possibilità per il processo chiamante di proseguire immediatamente
+    read no, write si. per la read il processo ha bisogno dei dati.
+impatto sullo stati del processo che esegue la richiesta.
+    la read, a meno di cacheing o altri casi particolari, e' bloccante. la write puo' essere non bloccante (e tipicamente non lo e' a meno che il processo non abbia necessita' della "conferma" che i dati siano stati scritti su disco). 
+impatto rispetto alla fairness nei confronti di altri processi.
+    le write, essendo non bloccanti possono essere molto "invasive" e generare molte richieste assieme (finche' il kernel fornisce buffer), prevaricando rispetto ai processi che effettuano solo read (bloccanti e quindi una sola per volta puo' essere in attesa).
+
+
+
+
+scheduling (pari)
+=================
+La politica di scheduling è preemtive con priorità (A>B>C). 
+A è inizialmente running, cpu bound ma ogni 30ms genera un major page fault che verrà servito in 40ms.
+B è inizialmente in blocco a causa di una lettura che verrà servita a tempo t=20 ms, è I/O bound con cpu bust trascurabili ed esegue infinite letture bloccanti servite in 30ms, nessun page fault.
+C è inizialmente ready, è cpu bound, non provoca page faults.
+
+B start blocked, A in(B) A pf B syscb C in(B) B
+
+    0ms: A running
+    20ms: interrupt dovuto a dati per B, B ready, lo scheduler seleziona ancora A (no dispatching)
+    30ms: A page fault, A in blocco, si schedula B
+    30ms: B system call bloccante, si schedula C
+    60ms: interrupt dovuto a dati per B, B ready, si schedula B
+
+scheduling (dispari)
+=================
+La politica di scheduling è preemtive con priorità (A>B>C). 
+A è inizialmente running, è I/O bound, ed esegue infinite letture bloccanti, ciascuna servita in 70ms.
+B è inizialemente ready è cpu bound e genera major page faults ogni 30ms, ciascuno servito in 60ms.
+C è inizialmente in blocco, a causa di un page fault che verrà servito a tempo t=20 ms, è cpu bound, non provoca altri page faults.
+
+    0ms: A running
+    0ms: A system call bloccante, A in blocco, si schedula B
+    20ms: interrupt dovuto a dati per C, C ready, lo scheduler seleziona ancora B (no dispatching)
+    30ms: B major page fault, B in blocco, si schedula C
+    70ms: interrupt dovuto ai dati richiesti da A, A ready, si schedula A
+
+
+Scripting grep
+==============
+
+# pari
+cat ripe.db.aut-num.filtered.txt | egrep '^org: *ORG-[Bb][^0-9]*([3-9][05]|[0-9]*[0-9][0-9][05])-RIPE$'
+
+# dispari
+cat ripe.db.aut-num.filtered.txt | egrep '^org: *ORG-[Cc][^0-9]*([7-9][0-9]0|[0-9]*[0-9][0-9][0-9]0)-RIPE$'
+
+
+
+Scripting awk
+==============
+
+# pari
+ cat ripe.db.aut-num.filtered.txt | egrep '^($|as-name|notify)' | awk '{gsub(/^[^:]*: */,""); print $0}' | awk -v FS='\n' -v RS='' '{m=""; for(i=2;i<=NF;i++){ m = m " " $i}; print $1, NF-1, m}'
+
+# dispari 
+cat ripe.db.aut-num.filtered.txt | egrep '^($|aut-num|mnt-by)' | awk '{gsub(/^[^:]*: */,""); print $0}' | awk -v FS='\n' -v RS='' '{m=""; for(i=2;i<=NF;i++){ m = m " " $i}; print $1, NF-1, m}'
+
+Debugging
+=========
+
+pizzonia@pisolo$ gcc -g *.c -lm -o fib
+
+------ ~/Downloads/prj3
+pizzonia@pisolo$ gdb fib
+GNU gdb (GDB) 7.6.1-ubuntu
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+Reading symbols from /home/pizzonia/Downloads/prj3/fib...done.
+(gdb) l fib
+1
+2       #include "append.h"
+3       #include "list.h"
+4       #include <math.h>
+5       long int fib( long int f1 )
+6       {
+7          long int f;
+8          if ( f1==1 || f1==2 )
+9            f = 1;
+10         else
+(gdb) 
+11           f = fib(f1-1) + fib(f1-2);
+12         return f;
+13      }
+14
+15      void init_list(struct list* L, int n)
+16      {
+17         int i;
+18         for (i=1; i<=n; i++)
+19           {
+20           double x=pow(fib(i), log(i));
+(gdb) b fib
+Breakpoint 1 at 0x400876: file init_list.c, line 8.
+(gdb) b 12
+Breakpoint 2 at 0x4008b8: file init_list.c, line 12.
+(gdb) ig 1 300
+Will ignore next 300 crossings of breakpoint 1.
+(gdb) ig 2 9999999
+Will ignore next 9999999 crossings of breakpoint 2.
+(gdb) r 22
+Starting program: /home/pizzonia/Downloads/prj3/fib 22
+
+Breakpoint 1, fib (f1=1) at init_list.c:8
+8          if ( f1==1 || f1==2 )
+(gdb) bt
+#0  fib (f1=1) at init_list.c:8
+#1  0x00000000004008b1 in fib (f1=3) at init_list.c:11
+#2  0x000000000040089e in fib (f1=4) at init_list.c:11
+#3  0x000000000040089e in fib (f1=5) at init_list.c:11
+#4  0x00000000004008b1 in fib (f1=7) at init_list.c:11
+#5  0x000000000040089e in fib (f1=8) at init_list.c:11
+#6  0x000000000040089e in fib (f1=9) at init_list.c:11
+#7  0x000000000040089e in fib (f1=10) at init_list.c:11
+#8  0x000000000040089e in fib (f1=11) at init_list.c:11
+#9  0x00000000004008fc in init_list (L=0x602010, n=22) at init_list.c:20
+#10 0x00000000004009c2 in main (argc=2, argv=0x7fffffffd8e8) at main.c:21
+(gdb) info br
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000000000400876 in fib at init_list.c:8
+        breakpoint already hit 301 times
+2       breakpoint     keep y   0x00000000004008b8 in fib at init_list.c:12
+        breakpoint already hit 292 times
+        ignore next 9999707 hits
+
+ #### fib e' ritornata 292 volte ####
+
+(gdb) frame 9
+#9  0x00000000004008fc in init_list (L=0x602010, n=22) at init_list.c:20
+20           double x=pow(fib(i), log(i));
+(gdb) ptype L
+type = struct list {
+    struct element *first;
+    struct element *last;
+} *
+(gdb) p *L->last
+$1 = {next = 0x0, prev = 0x602130, num = 10170,28645158315}
+(gdb) p *L->last->prev
+$2 = {next = 0x602150, prev = 0x602110, num = 2317,411278052934}
+(gdb) 
+
+numero_di_frame_sullo_stack = chiamate - ritorni
+
+
+
+Pratica Unix 
+===================
+
+### pari
+
+grep linux `find /usr/include -name '*.h'`
+ (nota l'uso dei backquote ` )
+o piu' precisamente per elencare solo i nomi dei file
+grep -l linux `find /usr/include -name '*.h'`
+
+### dispari
+
+X=`find /usr/include -name '*.h'`
+echo $X
+ (nota l'uso dei backquote ` )
+
+
+Windows vs. Linux
+=================
+
+In Unix gran parte delle informazioni di configurazioni sono in /etc, in Windows dove sono?
+    sono nel registro
+In Unix gran parte delle system call operano su file descriptor, descrivi il concetto che gioca lo stesso ruolo in Windows. 
+    Unix usa i file per rappresentare molte cose (con un atteggiamento simile al polimorfismo), in user space un file e' rappresentato da un numero, unico all'interno del processo, il file descripto. Allo stesso modo in Windows moltissime risorse sono executive objects, che sono rappresentate all'interno del processo da handlers.
+Unix organizza i processi ad albero, in Windows come sono organizzati i processi?
+    In windows il concetto di padre di un processo è solo informativo. A ciascun processo è associato il pid del processo che lo ha creato, tuttavia, tale struttura ad albero non viene mantenuta nel momento in cui il padre muore. Il pid del padre non è quindi parte della struttura dati che può essere considerata piatta.

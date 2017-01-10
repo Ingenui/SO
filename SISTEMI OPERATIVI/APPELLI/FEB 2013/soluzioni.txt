@@ -1,0 +1,125 @@
+
+# memory management (pari)
+
+    Con riferimento alla tecnica nota come page buffering rispondi, brevemente e punto per punto, alle seguenti domande
+    1. Il page buffering prevede due insiemi di frame. Descrivi questi due insiemi e spiega in quali casi un frame viene inserito in un insieme o nell'altro.
+    2. Supponi che il processo P abbia bisogno di un nuovo frame, e nel page buffer non ci sono frame che prima appartenevano a P. Che succede? 
+    3. Supponi che il processo P abbia bisogno di un nuovo frame, e nel page buffer ci sono dei frame che prima appartenevano a P. Elenca tutti i possibili casi e cosa succede.
+    
+    1. vedi materiale didattico
+    2. due possibilita' se il frame di cui si ha bisogno e' un frame nuovo (es. memoria allocata) allora il page buffer non c'entra nulla, altrimenti si deve reparire un frame clean qualsiasi il cui contenuto andra' perso.
+    3. due possibilita' se il frame di cui si ha bisogno e' un frame nuovo (es. memoria allocata) allora il page buffer non c'entra nulla, altrimenti se la pagina e' tra quelle del page buffer il page fault viene risolto senza accesso a disco, se la pagina non e' presente nel page buffer si reperisce un frame clea qualsiasi il cui contenuto andra' perso.
+
+# memory management (dispari)
+
+    Rispondi, brevemente e punto per punto, alle seguenti domande sul concetto di "demand paging".
+    1. Che cosa si intende con demand paging?
+    2. Quali sono i vantaggi del demand paging? e gli svantaggi?
+    3. In che relazione è l'approccio demand paging con il meccanismo di mappatura in memoria di un file?
+
+    1. vedi materiale didattico
+    2. vantaggi: uso della memoria solo per le pagine realmente necessarie. svantaggi: molti pagefault allo startup del processo e quindi startup piu' lento.
+    3. la mmap e' una primitiva che realizza demand paging per un file qualsiasi, ed e' la primitiva con cui si realizza il demand paging per il caricamento di un processo: l'eseguibile viene mappato in memoria. Il caricamento vero e proprio avviene per mezzo di page fault nel momento in cui si fa accesso a pagine non presenti.
+
+# I/O (pari)
+
+    Rispondi brevemente, ma punto per punto, alle seguenti domande sul filesystem dei sistemi unix.
+    che cosa è un inode -> vedi materiale didattico
+    che cosa è un hardlink -> vedi materiale didattico
+    che cosa è un softlink -> vedi materiale didattico
+    può un hardlink essere non valido? (cioè puntare a qualcosa che non esiste) -> NO
+    può un softlink essere non valido? -> SI
+    può un hardlink puntare ad un file fuori dalla partizione in cui è contenuto? -> NO
+    può un softlink puntare ad un file fuori dalla partizione in cui è contenuto? -> SI
+
+# I/O (dispari)
+
+    Rispondi, punto per punto, alle seguenti domande sulla consistenza di un filesystem.
+    1. Che signfica che un filesystem è in uno stato inconsistente?
+    2. Mostra un caso concreto in cui c'è il rischio di portare il filesystem in uno stato inconsistente.
+    3. Che cosa è un filesystem journaled.
+    4. Come fa un sistema operativo ad accorgersi che il filesystem da cui deve fare il boot è potenzialmente in uno stato inconsistente?
+    5. Cosa accade in quest'ultimo caso?
+
+    1. che non rispetta i suoi invarianti di struttura.
+    2. crash del sistema o interruzione della alimentazione potrebbero interrompere una "transazione"
+    3. vedi materiale didattico
+    4. c'e' un bit che dice se il filesystem e' montato o no, l'azione di smontare il filesystem resetta il bit. Se nel momento di montarlo il bit e' a 1 significa che il filesystem non e' stato smontato in maniera pulita e quindi una "transazione" potrebbe essere stata interrotta.
+    5. per i filesystem journaled si rieseguono le transazioni del journal, per un filesyste standard si fa un check completo per veririficare e ripiristinare gli invarianti di struttura.
+
+
+# scheduling (pari)
+
+    preemtive con priorità (A>B>C). 
+    A è inizialmente running, è I/O bound, ciascun I/O burst è servito in 300 ms
+    B è inizialemente ready, esegue una write non bloccante a 40 ms e subisce un major page fault a 70ms. Il page fault viene servito in 100ms.
+    C è inizialmente ready, è cpu bound, nessun page fault.
+
+    0: A  system call, A in blocco, si schedula B
+    40ms: B system call, non viene esguito dispatching
+    70ms: B interrupt per page fault, B in blocco, si schedula C
+    100ms: C running, interrupt per I/O, B esce dal blocco, si schedula B
+
+
+
+# scheduling (dispari)
+
+    preemtive con priorità (A>B>C). 
+    A è inizialmente running, esegue una write non bloccante a 30 ms e subisce un major page fault a 60ms. Il page fault viene servito in 50ms.
+    B è inizialemente ready, è I/O bound, ciascun I/O burst è servito in 200 ms
+    C è inizialmente ready, è cpu bound, nessun page fault.
+
+    0: A running
+    30ms: A system call, non viene eseguito dispatching
+    60ms: A interrupt per page fault, A in blocco, si schedula B
+    60ms: B system call, B in blocco, si schedula C
+    110ms: C running, interrupt per I/O, A esce dal blocco, si schedula A
+
+
+# scripting (pari)
+
+## espressione regolare 
+    cat radb.txt | egrep '^origin: *AS[1-9][0-9][0-9][0-9]$'
+
+## pipeline con awk
+    cat radb.txt | egrep '^(route:|origin:|$)' | awk '{gsub(/^origin: *AS/,""); gsub(/^route: */,""); print $0}' | awk -v RS='' -v FS='\n' '{print $2 "\t" $1}' | sort -n
+
+
+# scripting (dispari)
+
+## espressione regolare 
+    cat radb.txt | egrep '^origin: *AS[0-9]*[0-9][0-9][13579]$'
+
+## pipeline con awk
+    cat radb.txt | egrep '^(descr:|origin:|$)' | awk '{gsub(/^origin: *AS/,""); gsub(/^descr: */,""); print $0}' | awk -v RS='' -v FS='\n' '{print $2 "\t" $1}'| sort -n
+
+# debugging
+
+    l fib
+    b 12
+    cond 1 f>200
+    ig 1 19
+    r 25
+        break point hit
+    bt
+    frame 3
+    p *(L->last)
+
+
+# pratica unix (pari)
+
+    Il comando cd non fa riferimento a nessun eseguibile. Perché? Perché un eseguibile regolare non potrebbe assolvere allo stesso scopo?
+
+    E' un comando interno alla shell (vedi man bash, o help). Non puo' essere esterno perche' deve cambiare lo stato del processo che sta eseguendo bash, in particolare la sua directory corrente. Ogni processo ha una propria directory corrente, se "cd" fosse un eseguibile, cambierebbe la *sua* directory corrente (del processo figlio) non quella della shell.
+
+# pratica unix (dispari)
+    Se in bash esegui help ottieni una lista di "comandi interni" cosa sono? Secondo te, cosa spinge un progettistia di sistema a optare per un comando interno anziché un eseguibile regolare?
+
+    sono comandi che vengono eseguiti direttamente dal processo della shell senza creare un processo figlio. Sono necessari quando il comando deve agisce su uno stato del processo della shell (come cd, o export, i comandi di controllo di flusso if, for, while, ecc). Ve ne sono alcuni non strettamente necessari (es. kill) ma comodi per questioni sia di efficienza sia di indipendenza da eseguibili che potrebbero essere non disponibili (per esempio in una situazione di recovery di un errore da disco).
+
+# Windows vs. Linux (solo per chi fa 6 cfu)
+    1. Differenze e affinità tra il concetto di handle in windows e di file descriptor in Unix.
+    2. Unix organizza i processi ad albero, cosa puoi dire per Windows?
+
+    1. handle e file descripto sono strumenti che il processo ha per far riferimento a "oggetti" in kernel space. vengono passati come parametri alle system call. In windows fanno riferimenti a executive objects che rappresentano praticamente ogni risorsa del sistema, in unix fanno riferimento a file aperti, tramite i quali possono essere accedute molte (ma non tutte) le risorse del sistema.
+    2. Windows tiene traccia del padre all'avvio ma poi non vi e' alcuna attivita' del sistema per mantenere la struttura ad albero, per cui se il padre muore il PID segnato come padre di un processo non ha senso.
